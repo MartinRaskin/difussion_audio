@@ -202,3 +202,93 @@ class EulerHeunSamplerDPS(EulerHeunSampler):
             shape = y.shape
 
         return self.predict(shape, y.device, blind)
+    
+    def predict_conditional_awgn(
+        self,
+        y,  #observations 
+        operator, #degradation operator (assuming we define it in the tester)
+        shape=None,
+        blind=False,
+        **kwargs
+    ):
+
+        self.operator = operator
+        self.y = y
+        self.rec_loss = get_loss(self.args.tester.posterior_sampling.rec_loss, operator=self.operator)
+
+        if shape is None:
+            shape = y.shape
+
+        return self.predict_awgn(shape, y.device, blind)
+    
+    def predict_awgn(
+        self,
+        shape, 
+        device,
+        blind=False
+    ):
+        # get the noise schedule
+        t = self.create_schedule().to(device)
+
+        # sample prior from gaussian noise
+        x = t[0]*torch.randn(shape).to(device)
+
+        # parameter for langevin stochasticity, if Schurn is 0, gamma will be 0 to, so the sampler will be deterministic
+        gamma = self.get_gamma(t).to(device)
+
+        for i in tqdm(range(0, self.T, 1)):
+            self.step_counter=i
+            x, x_den = self.step_awgn(x, t[i] , t[i+1], gamma[i], blind)
+            
+        return x_den.detach()
+    
+    def step_awgn(self, x_i, t_i, t_iplus1, gamma_i, blind=False):
+
+        x_hat, t_hat = self.stochastic_timestep(x_i, t_i, gamma_i)
+        x_hat.requires_grad = True
+        x_den = self.get_Tweedie_estimate(x_hat, t_hat)
+
+        # I think it its the optimization of the RIR parameters
+        # if blind:
+        #     self.optimize_op(x_den.clone().detach(), t_hat)
+
+        # lh_score, rec_loss_value = self.get_likelihood_score(x_den, x_hat, t_hat)
+        # x_hat.detach_()
+
+        # Rescale denoised speech estimate magnitude to constraint absolute magnitudes of RIR / speech estimate
+        # if self.args.tester.posterior_sampling.constraint_speech_magnitude.use:
+        #     x_den = self.args.tester.posterior_sampling.constraint_speech_magnitude.speech_scaling / x_den.detach().std() * x_den #Match the sigma_data of dataset
+
+        score = self.Tweedie2score(x_den, x_hat, t_hat)
+
+        ode_integrand = self.diff_params._ode_integrand(x_hat, t_hat, score)# + lh_score
+        dt = t_iplus1 - t_hat
+
+        # if t_iplus1 !=0 and self.order == 2: #second order correction
+        #     t_prime = t_iplus1
+        #     x_prime = x_hat + dt * ode_integrand
+        #     x_prime.requires_grad_(True)
+        #     x_den = self.get_Tweedie_estimate(x_prime, t_prime)
+
+        #     if blind:
+        #         self.optimize_op(x_den.clone().detach(), t_prime)
+
+        #     lh_score_next, rec_loss_value = self.get_likelihood_score(x_den, x_prime, t_prime)
+        #     x_prime.detach_()
+
+        #     score = self.Tweedie2score(x_den, x_prime, t_prime)
+
+        #     ode_integrand_next = self.diff_params._ode_integrand(x_prime, t_prime, score) + lh_score_next
+        #     ode_integrand_midpoint = .5 * (ode_integrand + ode_integrand_next)
+        #     x_iplus1 = x_hat + dt * ode_integrand_midpoint
+            
+        # else:
+        x_iplus1 = x_hat + dt * ode_integrand
+
+        return x_iplus1.detach_(), x_den.detach()
+    
+    
+    
+    
+    
+    
