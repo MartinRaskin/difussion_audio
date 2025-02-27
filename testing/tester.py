@@ -150,7 +150,7 @@ class Tester():
                     with torch.no_grad():
                         operator_blind.update_H(use_noise=True)
 
-            pred = self.sampler.predict_conditional(y, operator_blind if blind else operator_ref, shape=(1,seg.shape[-1]), blind=blind)
+            pred = self.sampler.predict_conditional_awgn(y, operator_blind if blind else operator_ref, shape=(1,seg.shape[-1]), blind=blind)
 
             path_original=utils_logging.write_audio_file(seg, self.args.exp.sample_rate, os.path.basename(filename)[: -4], path=self.paths[mode+"original"])
             path_degraded=utils_logging.write_audio_file(y, self.args.exp.sample_rate, os.path.basename(filename)[: -4], path=self.paths[mode+"degraded"])
