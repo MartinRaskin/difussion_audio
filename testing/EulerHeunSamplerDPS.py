@@ -214,7 +214,7 @@ class EulerHeunSamplerDPS(EulerHeunSampler):
 
         self.operator = operator
         self.y = y
-        self.rec_loss = get_loss(self.args.tester.posterior_sampling.rec_loss, operator=self.operator)
+        # self.rec_loss = get_loss(self.args.tester.posterior_sampling.rec_loss, operator=self.operator)
 
         if shape is None:
             shape = y.shape
@@ -247,11 +247,12 @@ class EulerHeunSamplerDPS(EulerHeunSampler):
 
         x_hat, t_hat = self.stochastic_timestep(x_i, t_i, gamma_i)
         x_hat.requires_grad = True
-        x_den = self.get_Tweedie_estimate(x_hat, t_hat)
-        score = self.Tweedie2score(x_den, x_hat, t_hat)
+        score = self.model(x_hat, t_hat)
+        l2_loss = torch.nn.functional.mse_loss(x_hat, self.y)
+        lh_score = self.zeta * torch.autograd.grad(l2_loss, x_hat)[0]
         ode_integrand = self.diff_params._ode_integrand(x_hat, t_hat, score)# + lh_score
         dt = t_iplus1 - t_hat
-        x_iplus1 = x_hat + dt * ode_integrand
+        x_iplus1 = x_hat + dt * (ode_integrand + lh_score)
 
         return x_iplus1.detach_(), x_den.detach()
     
