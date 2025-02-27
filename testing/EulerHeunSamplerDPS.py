@@ -214,7 +214,7 @@ class EulerHeunSamplerDPS(EulerHeunSampler):
 
         self.operator = operator
         self.y = y
-        # self.rec_loss = get_loss(self.args.tester.posterior_sampling.rec_loss, operator=self.operator)
+        self.rec_loss = get_loss(self.args.tester.posterior_sampling.rec_loss, operator=self.operator)
 
         if shape is None:
             shape = y.shape
