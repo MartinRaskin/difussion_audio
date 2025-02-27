@@ -255,10 +255,18 @@ class EulerHeunSamplerDPS(EulerHeunSampler):
         lh_score = self.zeta * torch.autograd.grad(l2_loss, x_hat)[0]
         ode_integrand = self.diff_params._ode_integrand(x_hat, t_hat, score)# + lh_score
         dt = t_iplus1 - t_hat
-        x_iplus1 = x_hat + dt * (ode_integrand + lh_score)
+        x_iplus1 = x_hat + dt * (ode_integrand - lh_score)
 
         return x_iplus1.detach_(), x_den.detach()
     
+    def get_likelihood_score_awgn(self, x_den, x, t):
+
+        rec = self.rec_loss(self.y, x_den)
+        rec_grads = torch.autograd.grad(outputs=rec, inputs=x)[0]
+
+        # Normalize weighting parameter zeta
+        normguide = torch.norm(rec_grads)/(self.args.exp.audio_len**0.5)
+        return self.zeta / (normguide+1e-8) * rec_grads, rec
     
     
     
