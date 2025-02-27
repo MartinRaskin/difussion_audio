@@ -81,7 +81,7 @@ class EDM(SDE):
         return (sigma*self.sigma_data)**(-2) * (self.sigma_data**2+sigma**2)
         
     def Tweedie2score(self, tweedie, xt, t, *args, **kwargs):
-        return (tweedie - self._mean(xt, t)) / (-1*self._std(t)**2)
+        return (tweedie - self._mean(xt, t)) / self._std(t)**2
 
     def score2Tweedie(self, score, xt, t, *args, **kwargs):
         return self._std(t)**2 * score + self._mean(xt, t)
