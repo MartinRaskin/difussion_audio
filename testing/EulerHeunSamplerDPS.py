@@ -251,12 +251,10 @@ class EulerHeunSamplerDPS(EulerHeunSampler):
         x_den = self.get_Tweedie_estimate(x_hat, t_hat)
         score = self.Tweedie2score(x_den, x_hat, t_hat)
 
-        l2_loss = torch.nn.functional.mse_loss(x_hat, self.y)
-        lh_score = self.zeta * torch.autograd.grad(l2_loss, x_hat)[0]
-        ode_integrand = self.diff_params._ode_integrand(x_hat, t_hat, score)# + lh_score
+        lh_score, _ = self.get_likelihood_score_awgn(x_den, x_hat, t_hat)
+        ode_integrand = self.diff_params._ode_integrand(x_hat, t_hat, score) + lh_score
         dt = t_iplus1 - t_hat
-        x_iplus1 = x_hat + dt * (ode_integrand - lh_score)
-
+        x_iplus1 = x_hat + dt * ode_integrand
         return x_iplus1.detach_(), x_den.detach()
     
     def get_likelihood_score_awgn(self, x_den, x, t):
