@@ -247,7 +247,10 @@ class EulerHeunSamplerDPS(EulerHeunSampler):
 
         x_hat, t_hat = self.stochastic_timestep(x_i, t_i, gamma_i)
         x_hat.requires_grad = True
-        score = self.model(x_hat, t_hat)
+
+        x_den = self.get_Tweedie_estimate(x_hat, t_hat)
+        score = self.Tweedie2score(x_den, x_hat, t_hat)
+
         l2_loss = torch.nn.functional.mse_loss(x_hat, self.y)
         lh_score = self.zeta * torch.autograd.grad(l2_loss, x_hat)[0]
         ode_integrand = self.diff_params._ode_integrand(x_hat, t_hat, score)# + lh_score
