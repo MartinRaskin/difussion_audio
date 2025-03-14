@@ -166,14 +166,21 @@ class EulerHeunSamplerDPS(EulerHeunSampler):
         t = self.create_schedule().to(device)
 
         # sample prior
-        x = self.initialize_x(shape,device, t)
+        # x = self.initialize_x(shape,device, t)
+        x = self.y
 
         # parameter for langevin stochasticity, if Schurn is 0, gamma will be 0 to, so the sampler will be deterministic
         gamma = self.get_gamma(t).to(device)
 
+        x_prev = torch.zeros_like(x)
         for i in tqdm(range(0, self.T, 1)):
             self.step_counter=i
             x, x_den = self.step(x, t[i] , t[i+1], gamma[i], blind)
+            diff = torch.mean((x - x_prev) ** 2) / torch.mean(x_prev ** 2)
+            x_prev = x
+            if(diff.item() < 1e-3):
+              print(f"exiting after {i} iterations")
+              break
             
         return x_den.detach()
     
