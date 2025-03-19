@@ -173,12 +173,15 @@ class EulerHeunSamplerDPS(EulerHeunSampler):
         gamma = self.get_gamma(t).to(device)
 
         x_prev = torch.zeros_like(x)
+        last_mse = 0
         for i in tqdm(range(0, self.T, 1)):
             self.step_counter=i
             x, x_den = self.step(x, t[i] , t[i+1], gamma[i], blind)
-            diff = torch.mean((x - x_prev) ** 2) / torch.mean(x_prev ** 2)
+            curr_mse = torch.mean((x - x_prev) ** 2) / torch.mean(x_prev ** 2)
             x_prev = x
-            if(diff.item() < 1e-3):
+            rate = (curr_mse - last_mse) / last_mse
+            last_mse = curr_mse
+            if(rate.item() < 0.0):
               print(f"exiting after {i} iterations")
               break
             
