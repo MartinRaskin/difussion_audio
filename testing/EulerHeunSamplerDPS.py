@@ -162,21 +162,31 @@ class EulerHeunSamplerDPS(EulerHeunSampler):
         device,
         blind=False
     ):
+        RATE_CALLBACK_TH = 1e-5
         # get the noise schedule
         t = self.create_schedule().to(device)
 
         # sample prior
-        x = self.initialize_x(shape,device, t)
+        # x = self.initialize_x(shape,device, t)
+        x = self.y
 
         # parameter for langevin stochasticity, if Schurn is 0, gamma will be 0 to, so the sampler will be deterministic
         gamma = self.get_gamma(t).to(device)
-
+        last_mse = 0
         for i in tqdm(range(0, self.T, 1)):
             self.step_counter=i
             x, x_den = self.step(x, t[i] , t[i+1], gamma[i], blind)
+            curr_mse = torch.mean((self.y - x) ** 2)
+            rate = abs(curr_mse - last_mse) / last_mse
+            last_mse = curr_mse
+            if i == 0: # Avoid setup effects
+              continue
+            if(rate.item() < RATE_CALLBACK_TH):
+              print(f"exiting after {i} iterations")
+              break
             
         return x_den.detach()
-    
+                
     def predict_unconditional(self, *args, **kwargs):
         raise ValueError("DPS not made for unconditional sampling")
 
