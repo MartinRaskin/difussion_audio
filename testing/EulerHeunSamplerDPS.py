@@ -181,6 +181,7 @@ class EulerHeunSamplerDPS(EulerHeunSampler):
             x_prev = x
             rate = (curr_mse - last_mse) / last_mse
             last_mse = curr_mse
+            print(rate.item())
             if(rate.item() < 0.0):
               print(f"exiting after {i} iterations")
               break
